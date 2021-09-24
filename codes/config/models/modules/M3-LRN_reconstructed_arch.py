@@ -138,7 +138,8 @@ class z_and_3DMM(nn.module):
 
   def forward(self, x):
     x=self.MNv2(x)
-    x=torch.cat((x, FC(x)), 1)#right cat dim?
+    x=torch.cat((x, FC(x)), -1)#right cat dim?
+    return x
   
 
 class z_alpha_to_refined_landmarks(nn.module):
@@ -160,16 +161,17 @@ class z_alpha_to_refined_landmarks(nn.module):
         
         #which operations are ok for computing backprop? use matrices instead of cat and [0:49] and copy?
         
-        vector2354=torch.cat((holistic, x_no_pose), 1)#right cat dim? same as z_and_3DMM.
-        vector2354repeated=vector2354.repeat(68, 1)
+        vector2354=torch.cat((holistic, x_no_pose), -1)#right cat dim? same as z_and_3DMM.
+        vector2354repeated=vector2354.repeat(1, 68, 1) #because of batchsize?
         
-        MMPF=torch.cat((y, vector2354repeated), 1)#right cat dim?? carefully match dims!
+        MMPF=torch.cat((y, vector2354repeated), 2)#right cat dim?? carefully match dims!
+        #make sure y (i.e mlp64 output) is of shape torch.Size([1, 68, 64])
         
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
         refined_landmarks_1D=torch.reshape(refined_landmarks, (-1,)) # inverse action too?
-        refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), 1)#right cat dim? same as z_and_3DMM.
+        refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
         
-        
+        return refined_landmarks_with_z_alpha
 
    
 
