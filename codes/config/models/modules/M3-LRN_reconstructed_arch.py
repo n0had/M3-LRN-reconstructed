@@ -156,12 +156,17 @@ class z_alpha_to_refined_landmarks(nn.module):
         y=self.alphas_to_68landmarks(x)
         y=self.mlp64(y)
         holistic=self.mlp64_to_holistic(y)
-        x_no_pose=
+        x_no_pose=x[0:49]# ok?
+        
+        #which operations are ok for computing backprop? use matrices instead of cat and [0:49] and copy?
+        
         vector2354=torch.cat((holistic, x_no_pose), 1)#right cat dim? same as z_and_3DMM.
-        vector2354repeated=
-        MMPF=torch.cat((y, vector2354repeated), 1)#right cat dim??
+        vector2354repeated=vector2354.repeat(68, 1)
+        
+        MMPF=torch.cat((y, vector2354repeated), 1)#right cat dim?? carefully match dims!
+        
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
-        refined_landmarks_1D=
+        refined_landmarks_1D=torch.reshape(refined_landmarks, (-1,)) # inverse action too?
         refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), 1)#right cat dim? same as z_and_3DMM.
         
         
