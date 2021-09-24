@@ -60,9 +60,9 @@ class InvertedResidual(nn.Module):
         else:
             return self.conv(x)
           
-class MobileNetV2(nn.Module):
-    def __init__(self, num_classes=1000): #deleted width_mult
-        super(MobileNetV2, self).__init__()
+class MobilenetV2_backbone(nn.Module):
+    def __init__(self): #deleted width_mult
+        super(MobilenetV2_backbone, self).__init__()
         # setting of inverted residual blocks
         self.cfgs = [
             # t, c, n, s
@@ -92,7 +92,7 @@ class MobileNetV2(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         #self.classifier = nn.Linear(output_channel, num_classes)
 
-        self._initialize_weights()######
+        #self._initialize_weights()######
 
     def forward(self, x):
         x = self.features(x)
@@ -102,32 +102,72 @@ class MobileNetV2(nn.Module):
         #x = self.classifier(x)
         return x
 
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-                if m.bias is not None:
-                    m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-            elif isinstance(m, nn.Linear):
-                m.weight.data.normal_(0, 0.01)
-                m.bias.data.zero_()
+    #def _initialize_weights(self):
+    #    for m in self.modules():
+    #        if isinstance(m, nn.Conv2d):
+    #            n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+    #            m.weight.data.normal_(0, math.sqrt(2. / n))
+    #            if m.bias is not None:
+    #                m.bias.data.zero_()
+    #        elif isinstance(m, nn.BatchNorm2d):
+    #            m.weight.data.fill_(1)
+    #            m.bias.data.zero_()
+    #        elif isinstance(m, nn.Linear):
+    #            m.weight.data.normal_(0, 0.01)
+    #            m.bias.data.zero_()
 
 
 #assuming the MobilenetV2 backbone isnt static?
-class MobilenetV2_backbone(nn.module):
-  def __init__(self):
-    super.__init__()
-    
-    self.body=
-    
-  def forward(self, x):
-    return body(x)
+#class MobilenetV2_backbone(nn.module):
+#  def __init__(self):
+#    super.__init__()
+#    
+#    self.body=
+#    
+#  def forward(self, x):
+#    return body(x)
   
 class z_and_3DMM(nn.module):
-  def __init__(self)
+  def __init__(self):
+    super(z_and_3DMM, self).__init__()
   
-  self.MNv2_with_FC
+    self.MNv2=MobilenetV2_backbone()
+    self.FC=nn.Linear(1280,62)
+    
+    #3 MNv2 for 3 heads? otherwise, what would it mean?
+
+  def forward(self, x):
+    x=self.MNv2(x)
+    x=torch.cat((x, FC(x)), 1)#right cat dim?
+  
+
+class z_alpha_to_refined_landmarks(nn.module):
+    def __init__(self):
+        super(z_alpha_to_refined_landmarks, self).__init__()
+        
+        self.decoder=z_and_3DMM()
+        self.alphas_to_68landmarks=
+        self.mlp64=
+        self.mlp64_to_holistic=
+        self.MMPF_to_refined_landmarks=
+    
+    def forward(self, x):
+        x=self.decoder(x)
+        y=self.alphas_to_68landmarks(x)
+        y=self.mlp64(y)
+        holistic=self.mlp64_to_holistic(y)
+        x_no_pose=
+        vector2354=torch.cat((holistic, x_no_pose), 1)#right cat dim? same as z_and_3DMM.
+        vector2354repeated=
+        MMPF=torch.cat((y, vector2354repeated), 1)#right cat dim??
+        refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
+        refined_landmarks_1D=
+        refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), 1)#right cat dim? same as z_and_3DMM.
+        
+        
+
+   
+
+
+
+
