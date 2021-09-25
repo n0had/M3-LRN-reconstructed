@@ -1,5 +1,5 @@
-import os
 
+import os
 
 from collections import OrderedDict
 
@@ -29,6 +29,17 @@ def class M3_LRN_model():
         
         self.L2_loss = nn.L2Loss().to(self.device)
         self.L1_smooth_loss = nn.SmoothL1Loss().to(self.device)
+        
+        self.optimizer = optim.SGD(self.network.parameters(), lr=0.08, momentum=0.9)
+        
+        lr_scheduler.MultiStepLR_Restart(
+                            self.optimizer,
+                            train_opt["lr_steps"],
+                            restarts=train_opt["restarts"],
+                            weights=train_opt["restart_weights"],
+                            gamma=train_opt["lr_gamma"],
+                            clear_state=train_opt["clear_state"],
+                        )
     
 
         if self.is_train:
@@ -36,28 +47,11 @@ def class M3_LRN_model():
             # self.init_model() # Not use init is OK, since Pytorch has its owen init (by default)
             self.netG.train()
 
-            # loss
-            loss_type = train_opt["pixel_criterion"]
-            if loss_type == "l1":
-                self.cri_pix = nn.L1Loss().to(self.device)
-            elif loss_type == "l2":
-                self.cri_pix = nn.MSELoss().to(self.device)
-            elif loss_type == "cb":
-                self.cri_pix = CharbonnierLoss().to(self.device)
-            else:
-                raise NotImplementedError(
-                    "Loss type [{:s}] is not recognized.".format(loss_type)
-                )
-            self.l_pix_w = train_opt["pixel_weight"]
-
             # optimizers
             wd_G = train_opt["weight_decay_G"] if train_opt["weight_decay_G"] else 0
             optim_restorer = []
             optim_estimator = []
-            for (
-                k,
-                v,
-            ) in self.netG.named_parameters():  # can optimize for a part of the model
+            for (k, v) in self.netG.named_parameters():  # can optimize for a part of the model
                 if v.requires_grad:
                     if "Restorer" in k:
                         optim_restorer.append(v)
@@ -66,7 +60,11 @@ def class M3_LRN_model():
                 else:
                     if self.rank <= 0:
                         logger.warning("Params [{:s}] will not optimize.".format(k))
-            self.optimizer_G = torch.optim.Adam(
+                        
+                        
+            
+            
+            
                 [
                     {"params": optim_restorer, "lr": train_opt["lr_G"]},
                     {"params": optim_estimator, "lr": train_opt["lr_E"]},
@@ -97,7 +95,7 @@ def class M3_LRN_model():
             self.log_dict = OrderedDict()
             
     def optimize_parameters(self, step):
-        self.optimizer_G.zero_grad()
+        self.optimizer.zero_grad()
         alphas_and_z, refined_landmarks, alphas_from_landmarks = self.network(self.feed_img)
 
         total_loss = 0
@@ -113,7 +111,7 @@ def class M3_LRN_model():
         total_loss += self.lambda1*d_g
 
         total_loss.backward()
-        self.optimizer_G.step()
+        self.optimizer.step()
         
         
     def _set_lr(self, lr_groups_l):
