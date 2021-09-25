@@ -15,10 +15,7 @@ from models import modules
 def class M3_LRN_model():
   
   def __init__(self):
-        self.device = torch.device("cuda")
-        self.schedulers = []
-        self.optimizers = []
-        
+        self.device = torch.device("cuda")      
         
         self.network=modules.M3LRN().to(self.device)
         
