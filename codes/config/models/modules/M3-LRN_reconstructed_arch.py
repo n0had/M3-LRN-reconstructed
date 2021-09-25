@@ -220,12 +220,12 @@ class Z_alphas_to_refined_landmarks(nn.module):
         
         #x=self.decoder(x)
         
-        alphas=x[0:61]
+        alphas=x[0:62]#61?
         coarse_landmarks=self.alphas_to_68landmarks(alphas)
         y=self.MLP64(coarse_landmarks)
         #holistic=self.MLP64_to_holistic(y)
         holistic=torch.flatten(F.max_pool2d(self.MLP64_to_preholistic(y),(68,1)),1)
-        alphas_no_pose=x[0:49]# ok?
+        alphas_no_pose=x[0:50]#49? # ok?
         
         #which operations are ok for computing backprop? use matrices instead of cat and [0:49] and copy?
         
