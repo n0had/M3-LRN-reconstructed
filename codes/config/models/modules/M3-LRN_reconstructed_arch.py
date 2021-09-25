@@ -140,7 +140,10 @@ class z_and_3DMM(nn.module):
     x=self.MNv2(x)
     x=torch.cat((FC(x), x), -1)#right cat dim?
     return x
-  
+
+class mlp64(nn.module):
+    def __init__(self):
+    def forward(self, x):
 
 class z_alpha_to_refined_landmarks(nn.module):
     def __init__(self):
@@ -155,8 +158,8 @@ class z_alpha_to_refined_landmarks(nn.module):
     def forward(self, x):
         x=self.decoder(x)
         alphas=x[0:61]
-        y=self.alphas_to_68landmarks(alphas)
-        y=self.mlp64(y)
+        coarse_landmarks=self.alphas_to_68landmarks(alphas)
+        y=self.mlp64(coarse_landmarks)
         holistic=self.mlp64_to_holistic(y)
         alphas_no_pose=x[0:49]# ok?
         
@@ -169,10 +172,11 @@ class z_alpha_to_refined_landmarks(nn.module):
         #make sure y (i.e. mlp64 output) is of shape torch.Size([1, 68, 64])
         
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
-        refined_landmarks_1D=torch.reshape(refined_landmarks, (-1,)) # inverse action too?
+        refined_landmarks_sc=coarse_landmarks+refined_landmarks
+        refined_landmarks_sc_1D=torch.reshape(refined_landmarks_sc, (-1,)) # inverse action too?
         
         #refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
-        refined_landmarks_with_alpha=torch.cat((refined_landmarks_1D, alphas), -1)
+        refined_landmarks_with_alpha=torch.cat((refined_landmarks_sc_1D, alphas), -1)
         
         #dont pass z forward?
         return refined_landmarks_with_alpha
