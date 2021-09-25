@@ -136,10 +136,10 @@ class z_and_3DMM(nn.module):
     
     #3 MNv2 for 3 heads? otherwise, what would it mean?
 
-  def forward(self, x):
-    x=self.MNv2(x)
+  def forward(self, img):
+    x=self.MNv2(img)
     x=torch.cat((FC(x), x), -1)#right cat dim?
-    return x
+    return x #first come 3DMM parameters, then z.
 
 class MLP64_module(nn.module):
     def __init__(self):
@@ -188,15 +188,21 @@ class z_alpha_to_refined_landmarks(nn.module):
     def __init__(self):
         super(z_alpha_to_refined_landmarks, self).__init__()
         
-        self.decoder=z_and_3DMM()
+        #self.decoder=z_and_3DMM()
+        
+        
         self.alphas_to_68landmarks=
+        
+        
         self.MLP64=MLP_sequence(3,64,64)
         #self.MLP64_to_holistic=nn.sequential(MLP_sequence(64, ,64, 128, 1024), maxpool...) # twice 64 in input or not?
         self.MLP64_to_preholistic=MLP_sequence(64, ,64, 128, 1024) # twice 64 in input or not?
         self.MMPF_to_refined_landmarks=MLP_sequence(2418, 512, 256, 128, 3)
     
     def forward(self, x):
-        x=self.decoder(x)
+        
+        #x=self.decoder(x)
+        
         alphas=x[0:61]
         coarse_landmarks=self.alphas_to_68landmarks(alphas)
         y=self.MLP64(coarse_landmarks)
@@ -213,17 +219,52 @@ class z_alpha_to_refined_landmarks(nn.module):
         #make sure y (i.e. mlp64 output) is of shape torch.Size([1, 68, 64])
         
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
-        refined_landmarks_sc=coarse_landmarks+refined_landmarks
+        refined_landmarks_sc=coarse_landmarks+refined_landmarks # correct sc?
         
         
-        #flatten? #torch.flatten(refined_landmarks_sc, 1)
-        refined_landmarks_sc_1D=torch.reshape(refined_landmarks_sc, (-1,)) # inverse action too?
+        # #flatten? #torch.flatten(refined_landmarks_sc, 1)
+        # refined_landmarks_sc_1D=torch.reshape(refined_landmarks_sc, (-1,)) # inverse action too?
         
-        #refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
-        refined_landmarks_with_alpha=torch.cat((refined_landmarks_sc_1D, alphas), -1)
+        # #refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
+        # refined_landmarks_with_alpha=torch.cat((refined_landmarks_sc_1D, alphas), -1)
         
-        #dont pass z forward?
-        return refined_landmarks_with_alpha
+        # #dont pass z forward?
+        # return refined_landmarks_with_alpha
+        return refined_landmarks_sc
+    
+    
+class refined_landmarks_to_alphas(nn.module):
+    def __init__(self):
+        super(refined_landmarks_to_alphas, self).__init__()
+        
+        self.MLP_layers=MLP_sequence(3, 64, 64, 128, 256, 1024)
+        
+        # "Later separate FC layers as converters transformthe holistic landmark features to 3DMM parameters" (section 3.3)
+        #how many FC layers? why seperate?
+        self.FC_layers = nn.sequential(nn.linear(1024,256), nn.linear(256,62))
+        
+    def forward(self, x):
+        
+        y=self.MLP_layers(x)
+        hollistic_landmark_features=torch.flatten(F.max_pool2d(y,(68,1)),1)
+        alphas=FC_layers(hollistic_landmark_features)
+        return alphas
+    
+    
+class M3LRN(nn.module):
+    def __init__(self):
+        super(M3LRN, self).__init__()
+        
+        self.self.decoder=z_and_3DMM()
+        self.decoder_to_refined_landmarks=z_alpha_to_refined_landmarks()
+        self.landmarks_to_alphas =refined_landmarks_to_alphas()
+        
+    def forward(self, img):
+        
+        alphas_and_z=self.decoder(img)
+        refined_landmarks=self.decoder_to_refined_landmarks(alphas_and_z)
+        alphas_from_landmarks=self.landmarks_to_alphas(refined_landmarks)
+        return [alphas_and_z, refined_landmarks, alphas_from_landmarks]
 
    
 
