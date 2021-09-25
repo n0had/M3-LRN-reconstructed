@@ -141,9 +141,19 @@ class z_and_3DMM(nn.module):
     x=torch.cat((FC(x), x), -1)#right cat dim?
     return x
 
-class mlp64(nn.module):
+class MLP64(nn.module):
     def __init__(self):
+        super(MLP64, self).__init__()
+        
+        self.sharedMLP=nn.sequential(nn.linear(3,64), nn.ReLU(), nn.BatchNorm1d(num_features=64), nn.linear(64,64), nn.ReLU(), nn.BatchNorm1d(num_features=64))
+    
     def forward(self, x):
+        #for index in range x.shape[2]:
+        #    #treat as batch?
+        #    sharedMLP(torch.flatten(x[:,:,index], 1))
+        y=torch.stack((sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
+        
+        return y
 
 class z_alpha_to_refined_landmarks(nn.module):
     def __init__(self):
@@ -151,16 +161,16 @@ class z_alpha_to_refined_landmarks(nn.module):
         
         self.decoder=z_and_3DMM()
         self.alphas_to_68landmarks=
-        self.mlp64=
-        self.mlp64_to_holistic=
+        self.MLP64=
+        self.MLP64_to_holistic=
         self.MMPF_to_refined_landmarks=
     
     def forward(self, x):
         x=self.decoder(x)
         alphas=x[0:61]
         coarse_landmarks=self.alphas_to_68landmarks(alphas)
-        y=self.mlp64(coarse_landmarks)
-        holistic=self.mlp64_to_holistic(y)
+        y=self.MLP64(coarse_landmarks)
+        holistic=self.MLP64_to_holistic(y)
         alphas_no_pose=x[0:49]# ok?
         
         #which operations are ok for computing backprop? use matrices instead of cat and [0:49] and copy?
@@ -173,6 +183,9 @@ class z_alpha_to_refined_landmarks(nn.module):
         
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
         refined_landmarks_sc=coarse_landmarks+refined_landmarks
+        
+        
+        #flatten? #torch.flatten(refined_landmarks_sc, 1)
         refined_landmarks_sc_1D=torch.reshape(refined_landmarks_sc, (-1,)) # inverse action too?
         
         #refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
