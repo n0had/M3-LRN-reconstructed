@@ -5,7 +5,8 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-from torch.nn.parallel import DistributedDataParallel
+import torch.nn.functional as F
+import torch.nn.init as init
 
 from models import modules
 
@@ -25,6 +26,9 @@ def class M3_LRN_model():
         self.lambda2=0.03
         self.lambda3=0.02
         self.lambda4=0.001
+        
+        self.L2_loss = nn.L2Loss().to(self.device)
+        self.L1_smooth_loss = nn.SmoothL1Loss().to(self.device)
     
 
         if self.is_train:
@@ -96,21 +100,12 @@ def class M3_LRN_model():
         self.optimizer_G.zero_grad()
         alphas_and_z, refined_landmarks, alphas_from_landmarks = self.network(self.feed_img)
 
-        self.fake_SR = srs[-1]
-        self.fake_ker = kernels[-1]
-
         total_loss = 0
-        for ind in range(len(srs)):
-
-            d_kr = self.cri_pix(
-                kernels[ind], self.real_kernel.view(*kernels[ind].shape)
-            )
-            # d_kr = self.cri_pix(ker_maps[ind], self.real_ker_map)
-
-            d_sr = self.cri_pix(srs[ind], self.real_H)
-
-            self.log_dict["l_pix%d" % ind] = d_sr.item()
-            self.log_dict["l_ker%d" % ind] = d_kr.item()
+        for ind in range(len(alphas_and_z)):
+            d_3DMM = self.L2_loss(alphas_and_z[ind], self.real_alphas_and_z)
+            d_lmk = self.L1_smooth_loss(refined_landmarks[ind], self.real_landmarks)
+            d_3DMM_lmk=self.L2_loss(alphas_from_landmarks[ind], self.real_alphas_and_z)
+            d_g=self.L2_loss(alphas_and_z[ind][0:62], alphas_from_landmarks)
 
         total_loss += self.lambda1*d_3DMM
         total_loss += self.lambda1*d_lmk
