@@ -154,6 +154,23 @@ class MLP64(nn.module):
         y=torch.stack((sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
         
         return y
+   
+
+class MLP_sequence(nn.module):
+    #def __init__(self, dim_tuple):
+    def __init__(self, input_dim,*dims):
+        #super(MLP_sequence, self).__init__()
+        super(self).__init__()
+        
+        self.sharedMLP=nn.sequential(nn.linear(3,64), nn.ReLU(), nn.BatchNorm1d(num_features=64), nn.linear(64,64), nn.ReLU(), nn.BatchNorm1d(num_features=64))
+    
+    def forward(self, x):
+        #for index in range x.shape[2]:
+        #    #treat as batch?
+        #    sharedMLP(torch.flatten(x[:,:,index], 1))
+        y=torch.stack((sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
+        
+        return y
 
 class z_alpha_to_refined_landmarks(nn.module):
     def __init__(self):
