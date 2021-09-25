@@ -170,9 +170,12 @@ class z_alpha_to_refined_landmarks(nn.module):
         
         refined_landmarks=self.MMPF_to_refined_landmarks(MMPF)
         refined_landmarks_1D=torch.reshape(refined_landmarks, (-1,)) # inverse action too?
-        refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
         
-        return refined_landmarks_with_z_alpha
+        #refined_landmarks_with_z_alpha=torch.cat((refined_landmarks_1D, x), -1)#right cat dim? same as z_and_3DMM. 1 or -1?
+        refined_landmarks_with_alpha=torch.cat((refined_landmarks_1D, alphas), -1)
+        
+        #dont pass z forward?
+        return refined_landmarks_with_alpha
 
    
 
