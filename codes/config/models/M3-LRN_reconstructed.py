@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
+from torch.utils.data import Dataset, DataLoader
+
 from models import modules
 
 
@@ -31,6 +33,10 @@ def class M3_LRN_model():
         
         self.total_epoches=80
         self.batch_size=1024
+        
+        self.train_data=
+        
+        self.train_dataloader = DataLoader(dataset=self.train_data, batch_size=self.total_epoches, shuffle=True)
     
     
     train_set = create_dataset(dataset_opt)
