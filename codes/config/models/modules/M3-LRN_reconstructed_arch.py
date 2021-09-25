@@ -126,20 +126,37 @@ class MobilenetV2_backbone(nn.Module):
 #    
 #  def forward(self, x):
 #    return body(x)
+
+class Linear_decoder(nn.module):
+  def __init__(self, input_dim,*dims):
+        super(self).__init__()
+        dims.insert(0, input_dim)
+        
+        FC_layers = [nn.linear(dims[k], dims[k+1]) for k in range(len(dims)-1)]
+        self.decoder=nn.sequential(*FC_layers)
+    
+    def forward(self, x):
+        return decoder(x)
+        
+        
+        
   
-class z_and_3DMM(nn.module):
+class Z_and_3DMM(nn.module):
   def __init__(self):
     super(z_and_3DMM, self).__init__()
   
-    self.MNv2=MobilenetV2_backbone()
-    self.FC=nn.Linear(1280,62)
+    self.encoder=MobilenetV2_backbone()
+    self.shape_decoder=Linear_decoder(1280,320,160,40)
+    self.expression_decoder=Linear_decoder(1280,320,80,10)
+    self.position_decoder=Linear_decoder(1280,320,80,12)
+    #self.FC=nn.Linear(1280,62)
     
     #3 MNv2 for 3 heads? otherwise, what would it mean?
 
   def forward(self, img):
-    x=self.MNv2(img)
-    x=torch.cat((FC(x), x), -1)#right cat dim?
-    return x #first come 3DMM parameters, then z.
+    z=self.encoder(img)
+    alphas_z=torch.cat((self.shape_decoder(z), self.expression_decoder(z), self.position_decoder(z), z), -1)#right cat dim?
+    return alphas_z #first come 3DMM parameters, then z.
 
 class MLP64_module(nn.module):
     def __init__(self):
@@ -156,7 +173,7 @@ class MLP64_module(nn.module):
         return y
    
 
-class single_MLP_layer(nn.module):
+class Single_MLP_layer(nn.module):
     #def __init__(self, dim_tuple):
     def __init__(self, input_dim, output_dim):
         #super(MLP_single, self).__init__()
@@ -173,7 +190,7 @@ class MLP_sequence(nn.module):
         #super(MLP_sequence, self).__init__()
         super(self).__init__()
         dims.insert(0, input_dim)
-        layers = [single_MLP_layer(dims[k], dims[k+1]) for k in range(len(dims)-1)]
+        layers = [Single_MLP_layer(dims[k], dims[k+1]) for k in range(len(dims)-1)]
         self.sharedMLP=nn.sequential(*layers)
     
     def forward(self, x):
@@ -184,9 +201,9 @@ class MLP_sequence(nn.module):
         
         return y
 
-class z_alpha_to_refined_landmarks(nn.module):
+class Z_alphas_to_refined_landmarks(nn.module):
     def __init__(self):
-        super(z_alpha_to_refined_landmarks, self).__init__()
+        super(Z_alphas_to_refined_landmarks, self).__init__()
         
         #self.decoder=z_and_3DMM()
         
@@ -233,21 +250,25 @@ class z_alpha_to_refined_landmarks(nn.module):
         return refined_landmarks_sc
     
     
-class refined_landmarks_to_alphas(nn.module):
+class Refined_landmarks_to_alphas(nn.module):
     def __init__(self):
-        super(refined_landmarks_to_alphas, self).__init__()
+        super(Refined_landmarks_to_alphas, self).__init__()
         
         self.MLP_layers=MLP_sequence(3, 64, 64, 128, 256, 1024)
         
+        self.shape_decoder=Linear_decoder(1024,256,128,40)
+        self.expression_decoder=Linear_decoder(1024,256,64,10)
+        self.position_decoder=Linear_decoder(1024,256,64,12)
         # "Later separate FC layers as converters transformthe holistic landmark features to 3DMM parameters" (section 3.3)
         #how many FC layers? why seperate?
-        self.FC_layers = nn.sequential(nn.linear(1024,256), nn.linear(256,62))
+        #self.FC_layers = nn.sequential(nn.linear(1024,256), nn.linear(256,62))
         
     def forward(self, x):
         
         y=self.MLP_layers(x)
-        hollistic_landmark_features=torch.flatten(F.max_pool2d(y,(68,1)),1)
-        alphas=FC_layers(hollistic_landmark_features)
+        hls=torch.flatten(F.max_pool2d(y,(68,1)),1) #hls means hollistic_landmark_features
+        #alphas=self.FC_layers(hollistic_landmark_features)
+        alphas=torch.cat((self.shape_decoder(hls), self.expression_decoder(hls), self.position_decoder(hls)), -1)
         return alphas
     
     
@@ -255,13 +276,14 @@ class M3LRN(nn.module):
     def __init__(self):
         super(M3LRN, self).__init__()
         
-        self.self.decoder=z_and_3DMM()
-        self.decoder_to_refined_landmarks=z_alpha_to_refined_landmarks()
-        self.landmarks_to_alphas =refined_landmarks_to_alphas()
+        #self.self.decoder=Z_and_3DMM()
+        self.self.img_to_z_3DMM=Z_and_3DMM()
+        self.decoder_to_refined_landmarks=Z_alphas_to_refined_landmarks()
+        self.landmarks_to_alphas =Refined_landmarks_to_alphas()
         
     def forward(self, img):
         
-        alphas_and_z=self.decoder(img)
+        alphas_and_z=self.img_to_z_3DMM(img)
         refined_landmarks=self.decoder_to_refined_landmarks(alphas_and_z)
         alphas_from_landmarks=self.landmarks_to_alphas(refined_landmarks)
         return [alphas_and_z, refined_landmarks, alphas_from_landmarks]
