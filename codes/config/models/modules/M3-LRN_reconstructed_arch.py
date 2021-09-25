@@ -141,7 +141,7 @@ class z_and_3DMM(nn.module):
     x=torch.cat((FC(x), x), -1)#right cat dim?
     return x
 
-class MLP64(nn.module):
+class MLP64_module(nn.module):
     def __init__(self):
         super(MLP64, self).__init__()
         
@@ -151,24 +151,36 @@ class MLP64(nn.module):
         #for index in range x.shape[2]:
         #    #treat as batch?
         #    sharedMLP(torch.flatten(x[:,:,index], 1))
-        y=torch.stack((sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
+        y=torch.stack((self.sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
         
         return y
    
+
+class single_MLP_layer(nn.module):
+    #def __init__(self, dim_tuple):
+    def __init__(self, input_dim, output_dim):
+        #super(MLP_single, self).__init__()
+        super(self).__init__()
+        
+        self.single_layer=nn.sequential(nn.linear(input_dim,output_dim), nn.ReLU(), nn.BatchNorm1d(num_features=output_dim))
+    
+    def forward(self, x):     
+        return self.single_layer(x)
 
 class MLP_sequence(nn.module):
     #def __init__(self, dim_tuple):
     def __init__(self, input_dim,*dims):
         #super(MLP_sequence, self).__init__()
         super(self).__init__()
-        
-        self.sharedMLP=nn.sequential(nn.linear(3,64), nn.ReLU(), nn.BatchNorm1d(num_features=64), nn.linear(64,64), nn.ReLU(), nn.BatchNorm1d(num_features=64))
+        dims.insert(0, input_dim)
+        layers = [single_MLP_layer(dims[k], dims[k+1]) for k in range(len(dims)-1)]
+        self.sharedMLP=nn.sequential(*layers)
     
     def forward(self, x):
         #for index in range x.shape[2]:
         #    #treat as batch?
         #    sharedMLP(torch.flatten(x[:,:,index], 1))
-        y=torch.stack((sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
+        y=torch.stack((self.sharedMLP(torch.flatten(x[:,:,index], 1)) for index in range x.shape[2]), 2)
         
         return y
 
@@ -178,9 +190,9 @@ class z_alpha_to_refined_landmarks(nn.module):
         
         self.decoder=z_and_3DMM()
         self.alphas_to_68landmarks=
-        self.MLP64=
-        self.MLP64_to_holistic=
-        self.MMPF_to_refined_landmarks=
+        self.MLP64=MLP_sequence(3,64,64)
+        self.MLP64_to_holistic=nn.sequential(MLP_sequence(64, ,64, 128, 1024), maxpool...) # twice 64 in input or not?
+        self.MMPF_to_refined_landmarks=MLP_sequence(2418, 512, 256, 128, 3)
     
     def forward(self, x):
         x=self.decoder(x)
